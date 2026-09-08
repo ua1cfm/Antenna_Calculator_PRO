@@ -1,3 +1,3 @@
 # Antenna_Calculator_PRO
 Программа для визуализации антенн
-[!image]()
+[!image](https://github.com/ua1cfm/Antenna_Calculator_PRO/blob/main/01.png)
