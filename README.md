@@ -1,185 +1,120 @@
-# Antenna_Calculator_PRO
-<br/><br/><br/>
-![image](https://github.com/ua1cfm/Antenna_Calculator_PRO/blob/main/01.png)
-<br/><br/><br/>
-![image](https://github.com/ua1cfm/Antenna_Calculator_PRO/blob/main/02.gif)
+# Antenna Calculator PRO — Version 1.19.264
 
-ANTENNA CALCULATOR PRO
-Описание программы
-© 2026 UA1CFM
+**Android application for antenna analysis, MMANA models, electromagnetic-field visualization, reflector/feed studies, and LiteVNA64 measurements**  
+**© UA1CFM, 2026** · **English** · [Русская версия](README_RU.md)
 
-Antenna Calculator PRO — специализированное Android-приложение для расчёта, анализа,
-визуализации и измерения параметров антенн и антенных систем.
+> **Source of truth:** `Antenna_Calculator_PRO_1.19.264_SELECTABLE_CU_WIRE_LOSS_TOP_FOLDER(1).zip`. This README describes capabilities grounded in that source tree. Older audit reports shipped in the archive are historical evidence, not proof that all features of the current build have been independently validated.
 
-Программа объединяет работу с моделями MMANA (*.maa), расчёты NEC-2 FULL, 2D и 3D
-диаграммы направленности, диаграмму Смита, ближнее электромагнитное поле, анализ
-FFS/FFD, расчёт облучателей параболических антенн, Touchstone, Yagi Designer,
-радиолюбительские калькуляторы и прямую работу с LiteVNA64 через USB.
+## Contents
 
-ОСНОВНЫЕ ВОЗМОЖНОСТИ
+1. [Overview](#overview)
+2. [What's new in 1.19.264](#whats-new-in-119264)
+3. [Features](#features)
+4. [Numerical solver and accuracy](#numerical-solver-and-accuracy)
+5. [Quick start](#quick-start)
+6. [MAA models and antenna stacks](#maa-models-and-antenna-stacks)
+7. [Near Field and currents](#near-field-and-currents)
+8. [Feed and reflector tools](#feed-and-reflector-tools)
+9. [LiteVNA64 and Touchstone](#litevna64-and-touchstone)
+10. [Building the Android project](#building-the-android-project)
+11. [Validation and limitations](#validation-and-limitations)
+12. [Reporting issues and credits](#reporting-issues-and-credits)
 
-• Встроенная база из 722 MAA-моделей.
-• Открытие внешних файлов MMANA (*.maa).
-• Основной расчётный движок NEC-2 FULL.
-• Расчёт входного импеданса R+jX и КСВ.
-• Частотный sweep и Smith Chart.
-• 2D диаграммы направленности.
-• 3D диаграммы направленности.
-• Просмотр 3D-геометрии антенны.
-• Расчёт Near Field.
-• Фазовая анимация токов и поля.
-• Анализ CST *.ffs.
-• Анализ HFSS *.ffd.
-• Расчёт облучателя и параболического отражателя.
-• Yagi Designer.
-• Touchstone *.s1p / *.s2p.
-• LiteVNA64 через USB.
-• LIVE SWEEP и ONE SWEEP.
-• S11, S21, SWR, Smith, маркеры.
-• Сохранение измерений в S2P.
-• Аудио-сонификация RF-данных.
-• Диагностика и проверка сходимости NEC-моделей.
-• Радиолюбительские и RF-калькуляторы.
+## Overview
 
-1. MAA И ВСТРОЕННАЯ БАЗА
+Antenna Calculator PRO brings together MMANA `.maa` wire-antenna analysis, 2D/3D far-field pattern visualization, near-field estimates, parabolic-reflector/feed utilities, CST `.ffs` and HFSS `.ffd` parsing, Touchstone data, and LiteVNA64 USB measurement tools. It is intended for amateur-radio research, design exploration, and engineering diagnostics, not certified metrology.
 
-Программа поддерживает модели MMANA (*.maa). Можно открыть внешний файл либо выбрать
-модель из встроенной библиотеки из 722 антенн. После загрузки отображаются тип антенны,
-частота, количество проводников, источников и габариты. Кнопки < и > позволяют переходить
-к соседним MAA-файлам в доступной папке.
+The supplied project is implemented in **Kotlin / Jetpack Compose** and includes antenna assets, numerical modules, diagnostic records, and Android build files.
 
-2. NEC-2 FULL
+## What's new in 1.19.264
 
-NEC-2 FULL используется как основной электродинамический движок для проводных антенн.
-После расчёта программа показывает Zin = R+jX, КСВ, токи, данные для Smith Chart,
-2D/3D диаграмм направленности и Near Field.
+- **WIRE MATERIAL** selection in MAA analysis: ideal **PEC** or **copper (Cu)** with conductivity **5.8 × 10⁷ S/m**.
+- Optional ohmic wire-loss treatment; batch CSV records the selected material.
+- Preserves **1.19.263** fixes for Russian MMANA combined/telescopic-wire section `Установки комб. пров.` and its `L0/L1/...` length semantics.
+- **Known limitation:** impedance remains diagnostically wrong for some DDRR and GP+LC designs; copper-loss support does **not** fix these cases.
+- The included `WHATS_NEW_1.19.264_CU_LOSS_RU.txt` reports standalone JVM checks of the Kotlin core, **not** a completed Android Gradle build of the delivered archive.
 
-3. SMITH CHART
+## Features
 
-Диаграмма Смита показывает изменение комплексного импеданса с частотой. При R0=50 Ом
-центр диаграммы соответствует приблизительно 50+j0 Ом. Верхняя половина соответствует
-индуктивной реактивности +jX, нижняя — ёмкостной -jX.
+| Area | Functions |
+|---|---|
+| MMANA / MAA | Antenna-file/library loading, wires, source and load definitions, selected stack configurations, current and impedance solving |
+| Radiation patterns | 2D cuts, interactive 3D views, polarization tools |
+| Frequency analysis | Complex input impedance, SWR, Smith chart and sweep-oriented views |
+| Near Field | E/H components, B/S-related representations, planar slices and phase animation |
+| Feeds and reflectors | CST `.ffs` / HFSS `.ffd`, reflector illumination, phase and phase-center diagnostics |
+| RF tools | Calculators and reference utilities in `HamTools` |
+| Touchstone | `.s1p` / `.s2p`, S-parameter traces and markers |
+| LiteVNA64 | USB interface, live frequency sweep, calibration and data analysis |
+| Audio | Experimental RF sonification and HRTF-based presentation |
+| Batch diagnostics | CSV output, batch processing and resume-related code |
 
-4. 2D ДИАГРАММЫ НАПРАВЛЕННОСТИ
+> A source-code module's presence does not guarantee that every UI action works identically across all Android phones or versions.
 
-Отображаются основная и ортогональная плоскости, максимум, минимум, HPBW (-3 dB),
-отношение вперёд/назад F/B и максимальный боковой лепесток.
+## Numerical solver and accuracy
 
-5. 3D ДИАГРАММА НАПРАВЛЕННОСТИ
+**The primary MAA calculation engine in v1.19.264 is an in-project MININEC-like solver, not NEC-2 FULL.** `MmanaSolverApi.solveAdaptive()` delegates to `MmanaMininecSolver.solve()`. The shipped `SOLVER_AUDIT_1.19.250.txt` confirms this architecture; `Nec2Core` and `Nec2FullDeck` remain for export/shared structures and should not be cited as proof that NEC-2 FULL drives MAA impedance.
 
-Пространственная ДН рассчитывается по комплексным токам NEC-2 FULL.
-Доступны режимы 5° и 2,5°. Модель можно вращать и рассматривать со всех направлений.
+Numerical correctness depends on wire geometry and radii, segmentation, source/load positions, ground conditions, and convergence. Complex impedance, currents, and radiation patterns warrant comparison with MMANA, CST, or measured references, particularly for DDRR, LC matching networks, coupled multi-source arrays, and lossy ground.
 
-6. 3D-МОДЕЛЬ АНТЕННЫ
+**Near-field E/H plots have a physical computation basis but are not independently certified quantitative field results.** Use them first for patterns and relative behavior; verify absolute values with well-controlled references.
 
-Показывает геометрию проводников MAA-модели. Доступны ISO, SIDE и FRONT. Этот режим
-помогает проверить, что проводники, петли и источник питания расположены правильно.
+## Quick start
 
-7. NEAR FIELD
+1. Install an APK you built yourself or obtained from a trusted project release.
+2. Open **ANTENNA / MAA** and choose a bundled model or import an external `.maa` file.
+3. Check frequency, geometry, sources, loads, and ground setting.
+4. Select **WIRE MATERIAL** (`PEC` or `Cu`) according to the intended study.
+5. Run the calculation and review R+jX, SWR/Smith, 2D/3D patterns, currents, and Near Field.
+6. For unexpected results, verify the model against an independent solver rather than adjusting values to match expectations.
 
-После NEC-2 FULL можно рассчитывать ближнее электромагнитное поле в плоскостях XY, XZ
-и YZ. Доступны FIELD N, FIELD HD и FIELD ULTRA. Можно отображать H, E, B, S,
-отношение |E|/|H| и E-вектор. Поддерживается фазовая анимация.
+## MAA models and antenna stacks
 
-8. YAGI DESIGNER
+The project includes MMANA assets, library indexes, and `maa_library` content. It addresses wire antennas such as dipoles, Yagis, verticals, loops, and selected Make Stack designs. Correct stack analysis requires expanding every physical antenna and preserving source count, coherent phases/amplitudes, load placement, and mutual coupling.
 
-Позволяет проектировать Yagi, задавать частоту, количество элементов, диаметры,
-положение и длину элементов. Поддерживаются NEC CHECK, AUTO MATCH TO Z0,
-ANALYZE IN MAA / NEC, SAVE MAA и EXPORT NEC.
+In MMANA files, a negative wire-radius field may reference a **combined/telescopic wire** rather than denote a physically negative radius. Version 1.19.263 adds recognition of the Russian combined-wire section; especially demanding geometries still merit independent inspection.
 
-9. FFS / FFD И ПАРАБОЛИЧЕСКИЕ АНТЕННЫ
+## Near Field and currents
 
-В ANTENNA / CALC доступны OPEN FFS для CST и OPEN FFD для HFSS. Программа анализирует
-диаграмму облучателя, фазу, edge illumination, spillover, taper и параметры
-параболического отражателя.
+`NearFieldEngine.kt` evaluates electromagnetic quantities from complex segment currents; `NearFieldSliceGeometry.kt` provides spatial slice geometry. Displays include E/H and derived B/S quantities as well as phase-dependent visualization. A minimum-distance regularization is applied near current elements, making very-near-wire and feed-junction values less suitable as quantitative references.
 
-10. LITEVNA64
+When comparing against CST, match antenna geometry, power/current normalization, frequency, coordinate axes, phase convention, and observation points. Compare complex **Ex/Ey/Ez** and **Hx/Hy/Hz**, not only plot colors or normalized maxima.
 
-Программа поддерживает LiteVNA64 по USB:
-• LIVE SWEEP;
-• ONE SWEEP;
-• S11;
-• S21;
-• SWR;
-• Smith Chart;
-• маркеры;
-• сохранение S2P;
-• OSL/THRU-калибровку.
+## Feed and reflector tools
 
-Режимы усреднения:
-• FAST ×1;
-• NORMAL ×4;
-• LOW NOISE ×16.
+`FfsParser`, `HfssFfdParser`, `FeedDiagnostics`, `PhaseAnalysis`, `AntennaMath`, and related screens support imported feed far-field data and parabolic-reflector analysis. Check input frequency, angular sampling, polarization, phase convention, and orientation carefully. Analytical feed/reflector estimates do not replace a full-wave CST reflector simulation.
 
-Автоматические маркеры:
-• MIN SWR;
-• X≈0;
-• MIN S11;
-• MAX S21.
+## LiteVNA64 and Touchstone
 
-Активный маркер показывает частоту, S11, S21, R, X, Z, КСВ и эквивалентную L/C.
-Для устойчивости LIVE предусмотрены RESYNC, RECONFIGURE, REOPEN и watchdog.
+The source includes `LiteVnaUsb`, `LiteVnaProtocol`, `LiteVnaCalibration`, `LiteVnaLiveController`, `Touchstone`, and `TouchstoneTab`. These tools handle measurement traces, markers, calibration workflows, and S-parameter exchange. Measurement reliability depends on the device, calibration, cabling, frequency span, and USB link. VNA measurements are separate from simulated MAA values.
 
-11. АНАЛИЗ ФИЛЬТРОВ
+## Building the Android project
 
-По данным LiteVNA64 программа может распознавать LPF, HPF, BPF и NOTCH и рассчитывать
-fL, fH, BW, f0 и Q по заданному относительному уровню.
+The project config declares **compileSdk 35**, **minSdk 24**, **targetSdk 35**, Java/Kotlin **17**, Kotlin and **Jetpack Compose**, Compose BOM `2024.12.01`, AndroidX Activity Compose `1.10.1`, and coroutines `1.9.0`. Install Android Studio, the necessary Android SDK and compatible JDK, then run:
 
-12. АУДИО-СОНИФИКАЦИЯ
+```bash
+./gradlew assembleDebug
+```
 
-Программа содержит звуковые режимы анализа RF-данных. В режиме A-BEACON используется
-постоянный опорный тон 880 Гц и изменяющиеся тоны параметров в диапазоне примерно
-440–1760 Гц. В режиме A/V COLOR IMPEDANCE реактивность влияет на высоту тона,
-активная часть — на тембр, а согласование — на характер звучания. Есть HRTF-режимы.
+On Windows:
 
-13. TOUCHSTONE
+```bat
+gradlew.bat assembleDebug
+```
 
-Поддерживаются *.s1p и *.s2p. Можно анализировать S11, S21, S12, S22, фазу, КСВ,
-Smith Chart и групповую задержку.
+A successful debug build typically outputs `app/build/outputs/apk/debug/`. **The supplied changelog does not establish a successful full Android Gradle build for v1.19.264**; resolve build problems using your local SDK/Gradle diagnostics.
 
-14. TOOLS
+## Validation and limitations
 
-Раздел TOOLS содержит:
-• dBm ↔ W ↔ mW;
-• напряжение на заданном сопротивлении;
-• длину волны;
-• 1/4λ, 1/2λ, 5/8λ;
-• коэффициент укорочения;
-• FSPL;
-• EIRP;
-• базовые расчёты радиолинии;
-• шумовые и кабельные расчёты;
-• антенные и RF-справочные величины.
+- The archive includes `SOLVER_AUDIT_1.19.250.txt`, prior `VALIDATION_*`, `AUDIT_*`, `SUMMARY_*` reports, and test cases. These document earlier tests; they are **not** certification for every feature of v1.19.264.
+- According to `WHATS_NEW_1.19.264_CU_LOSS_RU.txt`, some DDRR and GP+LC impedance results are still wrong.
+- Absolute near-field E/H near wires, sources, and load junctions, plus complicated phased stacks, need independent validation.
+- Ground models, conductivity, thin-wire approximations, and matching networks can introduce material numerical differences.
+- Near-field color maps and sonification are exploratory representations, **not calibrated measurement instruments**.
+- The archive includes third-party antenna data and HRTF/KEMAR assets. Review redistribution permissions and provide relevant notices before publishing the complete source bundle. A project-level open-source `LICENSE` should be chosen separately; do not assume bundled third-party files share the same terms.
 
-15. ДИАГНОСТИКА И СХОДИМОСТЬ
+## Reporting issues and credits
 
-DIAGNOSTICS используется для проверки NEC-модели. CONVERGENCE показывает, насколько
-результат зависит от сегментации. При сомнительном результате рекомендуется проверить
-частоту, единицы, источник, землю, сегментацию и соединение проводников.
+For a reproducible bug report, provide the source `.maa` / `.ffs` / `.ffd` / `.s1p`, frequency, ground setting, wire material, screenshots, expected impedance/pattern/field results, and independent MMANA/CST or measurement evidence.
 
-16. РЕКОМЕНДУЕМЫЙ ПОРЯДОК РАБОТЫ
-
-1. Открыть MAA или выбрать модель из ANTENNA LIBRARY.
-2. Проверить 3D-геометрию.
-3. Выполнить NEC-2 FULL.
-4. Проверить R+jX и КСВ.
-5. Посмотреть Smith Chart.
-6. Проверить 2D ДН.
-7. Проверить 3D ДН.
-8. При необходимости выполнить CONVERGENCE.
-9. Перейти к Near Field и фазовой анимации.
-10. Для реальной антенны сравнить расчёт с измерением LiteVNA64.
-
-17. НАЗНАЧЕНИЕ
-
-Antenna Calculator PRO предназначен для радиолюбителей и инженеров и может
-использоваться при разработке, настройке, сравнении и измерении антенн, в лаборатории
-и в полевых условиях. Программа не заменяет CST Studio Suite или HFSS, но позволяет
-выполнять большой объём практической антенной и RF-работы непосредственно на Android.
-
-Проект: Antenna Calculator PRO
-Автор: UA1CFM
-Платформа: Android
-Год: 2026
-
-© 2026 UA1CFM
+**Antenna Calculator PRO · © UA1CFM, 2026.**
