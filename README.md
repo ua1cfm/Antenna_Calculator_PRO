@@ -1,120 +1,208 @@
-# Antenna Calculator PRO — Version 1.19.264
+# Antenna Calculator PRO — v1.19.267
 
-**Android application for antenna analysis, MMANA models, electromagnetic-field visualization, reflector/feed studies, and LiteVNA64 measurements**  
-**© UA1CFM, 2026** · **English** · [Русская версия](README_RU.md)
+**Android antenna modelling, RF measurement and reflector/feed analysis**  
+**© UA1CFM, 2026** · [Русская документация](README_RU.md)
 
-> **Source of truth:** `Antenna_Calculator_PRO_1.19.264_SELECTABLE_CU_WIRE_LOSS_TOP_FOLDER(1).zip`. This README describes capabilities grounded in that source tree. Older audit reports shipped in the archive are historical evidence, not proof that all features of the current build have been independently validated.
+> **Release status:** Experimental source release. The v1.19.267 sweep fallback guard has undergone source-level inspection, but this package has **not** passed a complete fresh Android build, all-model numerical regression, or new authoritative MMANA comparison. Previously collected validation files are historical evidence, not results of v1.19.267.
 
 ## Contents
 
-1. [Overview](#overview)
-2. [What's new in 1.19.264](#whats-new-in-119264)
+1. [Purpose and scope](#purpose-and-scope)
+2. [Verified project metadata](#verified-project-metadata)
 3. [Features](#features)
-4. [Numerical solver and accuracy](#numerical-solver-and-accuracy)
-5. [Quick start](#quick-start)
-6. [MAA models and antenna stacks](#maa-models-and-antenna-stacks)
-7. [Near Field and currents](#near-field-and-currents)
-8. [Feed and reflector tools](#feed-and-reflector-tools)
-9. [LiteVNA64 and Touchstone](#litevna64-and-touchstone)
-10. [Building the Android project](#building-the-android-project)
-11. [Validation and limitations](#validation-and-limitations)
-12. [Reporting issues and credits](#reporting-issues-and-credits)
+4. [Numerical engine](#numerical-engine)
+5. [MMANA input and modelling assumptions](#mmana-input-and-modelling-assumptions)
+6. [Impedance and frequency-domain sweeps](#impedance-and-frequency-domain-sweeps)
+7. [Electric and magnetic fields](#electric-and-magnetic-fields)
+8. [Radiation patterns and reflector analysis](#radiation-patterns-and-reflector-analysis)
+9. [LiteVNA, Touchstone and utilities](#litevna-touchstone-and-utilities)
+10. [Installing and building](#installing-and-building)
+11. [Architecture and source map](#architecture-and-source-map)
+12. [Validation and limitations](#validation-and-limitations)
+13. [Troubleshooting](#troubleshooting)
+14. [Reproducible bug reports](#reproducible-bug-reports)
+15. [Contributing, licensing and acknowledgments](#contributing-licensing-and-acknowledgments)
 
-## Overview
+## Purpose and scope
 
-Antenna Calculator PRO brings together MMANA `.maa` wire-antenna analysis, 2D/3D far-field pattern visualization, near-field estimates, parabolic-reflector/feed utilities, CST `.ffs` and HFSS `.ffd` parsing, Touchstone data, and LiteVNA64 USB measurement tools. It is intended for amateur-radio research, design exploration, and engineering diagnostics, not certified metrology.
+Antenna Calculator PRO combines thin-wire antenna analysis, import of electromagnetic far-field data, interactive 2D/3D radiation visualization, feed/reflector estimates, near-field visualization, impedance plots, measurement workflows and amateur-radio engineering tools in an Android app.
 
-The supplied project is implemented in **Kotlin / Jetpack Compose** and includes antenna assets, numerical modules, diagnostic records, and Android build files.
+The software is intended for engineering exploration and comparative modelling. It is **not** a certified measurement tool, full 3D FEM/FDTD solver, or a drop-in replacement for every MMANA-GAL numerical convention. Model validity depends on topology, frequency, excitation, segmentation, conductor materials, loads and ground.
 
-## What's new in 1.19.264
+## Verified project metadata
 
-- **WIRE MATERIAL** selection in MAA analysis: ideal **PEC** or **copper (Cu)** with conductivity **5.8 × 10⁷ S/m**.
-- Optional ohmic wire-loss treatment; batch CSV records the selected material.
-- Preserves **1.19.263** fixes for Russian MMANA combined/telescopic-wire section `Установки комб. пров.` and its `L0/L1/...` length semantics.
-- **Known limitation:** impedance remains diagnostically wrong for some DDRR and GP+LC designs; copper-loss support does **not** fix these cases.
-- The included `WHATS_NEW_1.19.264_CU_LOSS_RU.txt` reports standalone JVM checks of the Kotlin core, **not** a completed Android Gradle build of the delivered archive.
+| Item | Value in this source release |
+|---|---|
+| Application ID / Kotlin package | `ua1cfm.cstffs` |
+| Version name | `1.19.267` |
+| Version code | `119267` |
+| Build system | Android Gradle Plugin / Gradle Kotlin DSL |
+| UI technology | Kotlin and Jetpack Compose / Material 3 |
+| `compileSdk` / `targetSdk` | 35 / 35 |
+| `minSdk` | 24 |
+| Java/Kotlin JVM target | 17 |
+| Source license | **No project-level license should be assumed**; see licensing section |
+
+The `gradle/wrapper/gradle-wrapper.jar` file is absent from the source archive inspected for this documentation. Consequently, a clean `./gradlew` build cannot be promised without repairing the wrapper or using a compatible local Gradle installation. Install a suitable Android SDK (API 35), JDK 17 or compatible toolchain, and Android Studio.
 
 ## Features
 
-| Area | Functions |
+### MMANA `.maa` antenna projects
+
+- Read wire-based antenna geometries and associated model data through `MaaParser.kt`.
+- Display wire geometry, inspect impedance and render computed radiation patterns.
+- Support multiple excitations, matching networks and stack configurations in model-dependent paths; complex cases require additional validation.
+- Evaluate conductor-loss options, including PEC and copper (`Cu`) selection in the 1.19.264 lineage.
+- Provide Smith-chart impedance trajectories and an interactive frequency sweep.
+- Preserve physically computed R+jX instead of replacing it with a preferred 50/75/100 Ω result.
+
+### Field and RF analysis
+
+- 2D principal-plane and 3D radiation-pattern display.
+- Current magnitude, current phase and time-phase animation based on solved complex currents.
+- Near-field electric and magnetic components, magnetic-flux density and power-flow-related displays.
+- Far-field import and analysis for CST `.ffs` and HFSS `.ffd` formats.
+- Parabolic-reflector / feed calculations and supporting RF tools.
+- LiteVNA64, Touchstone `.s1p`/`.s2p`, Smith/SWR/return loss and related sweep utilities.
+- RF audio/sonification, tools for antenna design, and batch-oriented components whose availability depends on the current UI and connected hardware.
+
+**Implementation note:** A source module being present establishes the existence of that implementation area; it does not alone guarantee the function works on every Android device or that all historical UI controls remain exposed in this exact revision.
+
+## Numerical engine
+
+The production MMANA impedance path is:
+
+```text
+MAA geometry / material / source / ground
+           |
+       MaaParser
+           |
+  MmanaSolverApi.solveAdaptive(...)
+           |
+  MmanaMininecSolver.solve(...)
+           |
+  complex segment currents, input impedance, radiation data
+```
+
+This branch uses an in-project **MININEC-compatible wire solver** in `MmanaMininecSolver.kt` as the principal MAA numerical engine. It should **not** be advertised as computing every MAA case with `NEC-2 FULL` merely because legacy NEC-named files remain in the source tree. `Nec2FullDeck.kt` and `Nec2Core.kt` also serve export/shared-data needs.
+
+Numerical fidelity is sensitive to pulse topology, junction orientation, matrix conditioning, geometry scale, ground conditions, segmentation and placement of sources/loads. There is no permission to replace unconverged answers with standard impedance values or silently manufacture smooth responses.
+
+## MMANA input and modelling assumptions
+
+`.maa` files can include named wire coordinates, radii, segmentation tags, sources, loads, earth settings, and compact multi-antenna/stack metadata. These must be treated as **electrical** as well as **geometric** data. Small mistakes in endpoint pulses, stacked excitations or matching networks can cause large errors in R+jX.
+
+Special cases requiring care include automatically segmented short wires, stepped/tapered elements, DDRR and fractal structures, complex loaded junctions, phased arrays, real-ground models and multiple coherent sources. The program's model-processing utilities include `MmanaGalSegmentation.kt`, `MmanaStackSegmentation.kt`, `MmanaMultiSourceReference.kt`, and ground-model modules. Do not assume that visual agreement of 3D geometry proves identical numerical discretization.
+
+## Impedance and frequency-domain sweeps
+
+The impedance is complex, `Z(f) = R(f) + jX(f)`, and displayed relative to a chosen Smith reference impedance `Z0`. **`Z0` is a visualization/SWR reference**; the engine does not tune the antenna's physical impedance to that value.
+
+### What changed in the recent versions
+
+| Version | Source-level change | What it does **not** prove |
+|---|---|---|
+| 1.19.264 | Copper/PEC wire-loss selection in the supplied lineage | Absolute agreement of all loaded/resonant MAA models |
+| 1.19.265 | Experimental Tei-based segmentation for a restricted dense-short-wire population with `EC ≤ 1` | A universal equivalent of MMANA segmentation |
+| 1.19.266 | Freeze pulse discretization at the sweep reference frequency and calculate frequency-dependent impedance using that common topology; 61 frequency samples with greater center density | That each impedance value or resonance frequency matches MMANA |
+| **1.19.267** | Guard against switching to a multi-source real-ground fallback which has a different discretization during a frozen-topology sweep | A fix for all negative-R cases or a successful full-corpus regression |
+
+In 1.19.267, if `activeSources >= 2`, the model uses real ground, and the primary result yields negative R, the fallback path could otherwise introduce a point computed using another mesh. With a sweep reference supplied, the application instead **stops the sweep with an explicit diagnostic**. Ordinary single-frequency fallback behavior remains unchanged. This is a continuity/safety guard, not impedance curve smoothing.
+
+The user-observed improvement for DDRR-DL2KQ in 1.19.266 was a **smooth Smith trace**, after visibly discontinuous earlier traces. One screenshot validates the displayed behavior for that example, not numerical error bounds or all-model performance.
+
+### How to verify a sweep
+
+Compare each point's actual `R(f)` and `X(f)`, segment count, excitation pulse, matrix residual and solver status. Use a dense local frequency interval for narrowband resonators, rather than inferring resonance from a coarse ±5% trace. Check that all points have the same pulse topology while retaining the **actual** frequency in Maxwell's equations.
+
+## Electric and magnetic fields
+
+`NearFieldEngine.kt` reconstructs fields from complex segmented currents. The near-field section provides components such as E and H, plus B/power-flow-related quantities and plane slices. The physical model includes distance-dependent reactive, induction and radiation terms. It is **not** a general 3D volumetric FEM/FDTD field solver.
+
+The near-wire evaluation regularizes the minimum observation distance to avoid singular or unstable values; current interpolation and segment approximations can alter the field close to metal surfaces, feed nodes, traps and lumped networks.
+
+**Practical interpretation:** relative distributions and field topology are useful for exploration; absolute V/m, A/m, local phase and fields extremely close to wires remain unvalidated for universal precision. For independent checks, compare complex `Ex/Ey/Ez` and `Hx/Hy/Hz` at identical observation points with a trusted solver, with matching excitation and ground assumptions. In the far field, the magnitude of the free-space E/H ratio tends toward approximately 377 Ω; this need not hold in the reactive near field.
+
+## Radiation patterns and reflector analysis
+
+The project contains `MmanaRadiationPattern.kt`, `Radiation3D.kt`, `ThreeDTab.kt`, `FfsParser.kt`, `HfssFfdParser.kt`, `FeedDiagnostics.kt`, and reflector/antenna mathematics. Available presentations include 2D cuts, interactive 3D plots and feed diagnostics. Far-field files imported from CST/HFSS are externally computed field data and should be distinguished from patterns generated internally from MAA currents.
+
+For reflector work, align angle conventions, polarization, phase center, frequency, feed placement and normalization. Spillover/taper/efficiency estimates are only as reliable as their inputs and the model used.
+
+## LiteVNA, Touchstone and utilities
+
+Relevant source modules include `LiteVnaUsb.kt`, `LiteVnaProtocol.kt`, `LiteVnaCalibration.kt`, `LiteVnaLiveController.kt`, `Touchstone.kt`, `TouchstoneTab.kt`, `TdrMath.kt`, `RfSonification.kt`, `AntennaSonification.kt`, `HamTools.kt` and `YagiDesigner.kt`.
+
+The app includes or has source implementations for USB VNA acquisition, calibration-related logic, S-parameter traces, marker-style analyses, Touchstone I/O, RF calculations, antenna-design assistance and sonic representation of RF curves. Hardware support is contingent on Android USB permissions, compatible VNA firmware, sampling settings and correct calibration. Do not interpret simulated impedance as measured S11 without a calibrated acquisition chain.
+
+## Installing and building
+
+1. Extract the full **Antenna Calculator PRO 1.19.267** source archive to a writable folder. Open the directory that directly contains `settings.gradle.kts` and `app/` in Android Studio.
+2. Install Android SDK API 35 and a suitable JDK 17-based toolchain. Allow Gradle to synchronize dependencies using network access.
+3. **Check the Gradle wrapper:** the source package inspected here has no `gradle/wrapper/gradle-wrapper.jar`. Recover a legitimate wrapper with a compatible Gradle version using a local Gradle installation, or use the IDE's supported tooling. Do not download an arbitrary unverified JAR.
+4. Select an Android emulator or a compatible device (Android API 24+), and build/run the `app` module.
+5. Import a small known MAA model first, then check geometry, feed and `R+jX` before drawing conclusions from fields/3D plots.
+
+No clean Android APK build of this particular release was verified in the current source audit. The presence of source code and Gradle declarations does not constitute a tested binary release.
+
+## Architecture and source map
+
+All paths below are relative to the Android project root:
+
+| Area | Files |
 |---|---|
-| MMANA / MAA | Antenna-file/library loading, wires, source and load definitions, selected stack configurations, current and impedance solving |
-| Radiation patterns | 2D cuts, interactive 3D views, polarization tools |
-| Frequency analysis | Complex input impedance, SWR, Smith chart and sweep-oriented views |
-| Near Field | E/H components, B/S-related representations, planar slices and phase animation |
-| Feeds and reflectors | CST `.ffs` / HFSS `.ffd`, reflector illumination, phase and phase-center diagnostics |
-| RF tools | Calculators and reference utilities in `HamTools` |
-| Touchstone | `.s1p` / `.s2p`, S-parameter traces and markers |
-| LiteVNA64 | USB interface, live frequency sweep, calibration and data analysis |
-| Audio | Experimental RF sonification and HRTF-based presentation |
-| Batch diagnostics | CSV output, batch processing and resume-related code |
+| UI and navigation | `app/src/main/java/ua1cfm/cstffs/MainActivity.kt`, `YagiMaaTab.kt`, `ThreeDTab.kt` |
+| Input/parser | `MaaParser.kt`, `FfsParser.kt`, `HfssFfdParser.kt`, `Touchstone.kt` |
+| Electromagnetics | `MmanaSolverApi.kt`, `MmanaMininecSolver.kt`, `MmanaRadiationPattern.kt` |
+| Segmentation / stacks / ground | `MmanaGalSegmentation.kt`, `MmanaStackSegmentation.kt`, `MmanaMultiSourceReference.kt`, `GroundModelV2.kt` |
+| Near fields and polarization | `NearFieldEngine.kt`, `NearFieldSliceGeometry.kt`, `PolarizationMath.kt`, `PhaseAnalysis.kt` |
+| 3D rendering | `Radiation3D.kt`, `SystemPattern3D.kt`, `ThreeDTab.kt` |
+| VNA and data | `LiteVnaUsb.kt`, `LiteVnaProtocol.kt`, `LiteVnaCalibration.kt`, `LiteVnaLiveController.kt`, `TouchstoneTab.kt` |
+| Other RF tools | `YagiDesigner.kt`, `HamTools.kt`, `FeedDiagnostics.kt`, `TdrMath.kt`, `RfSonification.kt` |
+| Build | `app/build.gradle.kts`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` |
 
-> A source-code module's presence does not guarantee that every UI action works identically across all Android phones or versions.
-
-## Numerical solver and accuracy
-
-**The primary MAA calculation engine in v1.19.264 is an in-project MININEC-like solver, not NEC-2 FULL.** `MmanaSolverApi.solveAdaptive()` delegates to `MmanaMininecSolver.solve()`. The shipped `SOLVER_AUDIT_1.19.250.txt` confirms this architecture; `Nec2Core` and `Nec2FullDeck` remain for export/shared structures and should not be cited as proof that NEC-2 FULL drives MAA impedance.
-
-Numerical correctness depends on wire geometry and radii, segmentation, source/load positions, ground conditions, and convergence. Complex impedance, currents, and radiation patterns warrant comparison with MMANA, CST, or measured references, particularly for DDRR, LC matching networks, coupled multi-source arrays, and lossy ground.
-
-**Near-field E/H plots have a physical computation basis but are not independently certified quantitative field results.** Use them first for patterns and relative behavior; verify absolute values with well-controlled references.
-
-## Quick start
-
-1. Install an APK you built yourself or obtained from a trusted project release.
-2. Open **ANTENNA / MAA** and choose a bundled model or import an external `.maa` file.
-3. Check frequency, geometry, sources, loads, and ground setting.
-4. Select **WIRE MATERIAL** (`PEC` or `Cu`) according to the intended study.
-5. Run the calculation and review R+jX, SWR/Smith, 2D/3D patterns, currents, and Near Field.
-6. For unexpected results, verify the model against an independent solver rather than adjusting values to match expectations.
-
-## MAA models and antenna stacks
-
-The project includes MMANA assets, library indexes, and `maa_library` content. It addresses wire antennas such as dipoles, Yagis, verticals, loops, and selected Make Stack designs. Correct stack analysis requires expanding every physical antenna and preserving source count, coherent phases/amplitudes, load placement, and mutual coupling.
-
-In MMANA files, a negative wire-radius field may reference a **combined/telescopic wire** rather than denote a physically negative radius. Version 1.19.263 adds recognition of the Russian combined-wire section; especially demanding geometries still merit independent inspection.
-
-## Near Field and currents
-
-`NearFieldEngine.kt` evaluates electromagnetic quantities from complex segment currents; `NearFieldSliceGeometry.kt` provides spatial slice geometry. Displays include E/H and derived B/S quantities as well as phase-dependent visualization. A minimum-distance regularization is applied near current elements, making very-near-wire and feed-junction values less suitable as quantitative references.
-
-When comparing against CST, match antenna geometry, power/current normalization, frequency, coordinate axes, phase convention, and observation points. Compare complex **Ex/Ey/Ez** and **Hx/Hy/Hz**, not only plot colors or normalized maxima.
-
-## Feed and reflector tools
-
-`FfsParser`, `HfssFfdParser`, `FeedDiagnostics`, `PhaseAnalysis`, `AntennaMath`, and related screens support imported feed far-field data and parabolic-reflector analysis. Check input frequency, angular sampling, polarization, phase convention, and orientation carefully. Analytical feed/reflector estimates do not replace a full-wave CST reflector simulation.
-
-## LiteVNA64 and Touchstone
-
-The source includes `LiteVnaUsb`, `LiteVnaProtocol`, `LiteVnaCalibration`, `LiteVnaLiveController`, `Touchstone`, and `TouchstoneTab`. These tools handle measurement traces, markers, calibration workflows, and S-parameter exchange. Measurement reliability depends on the device, calibration, cabling, frequency span, and USB link. VNA measurements are separate from simulated MAA values.
-
-## Building the Android project
-
-The project config declares **compileSdk 35**, **minSdk 24**, **targetSdk 35**, Java/Kotlin **17**, Kotlin and **Jetpack Compose**, Compose BOM `2024.12.01`, AndroidX Activity Compose `1.10.1`, and coroutines `1.9.0`. Install Android Studio, the necessary Android SDK and compatible JDK, then run:
-
-```bash
-./gradlew assembleDebug
-```
-
-On Windows:
-
-```bat
-gradlew.bat assembleDebug
-```
-
-A successful debug build typically outputs `app/build/outputs/apk/debug/`. **The supplied changelog does not establish a successful full Android Gradle build for v1.19.264**; resolve build problems using your local SDK/Gradle diagnostics.
+Historical `VALIDATION_*`, `AUDIT_*`, `WHATS_NEW_*` and `EXPERIMENT_*` files are included in the wider source archive. Always consult their recorded version before quoting them as evidence for v1.19.267.
 
 ## Validation and limitations
 
-- The archive includes `SOLVER_AUDIT_1.19.250.txt`, prior `VALIDATION_*`, `AUDIT_*`, `SUMMARY_*` reports, and test cases. These document earlier tests; they are **not** certification for every feature of v1.19.264.
-- According to `WHATS_NEW_1.19.264_CU_LOSS_RU.txt`, some DDRR and GP+LC impedance results are still wrong.
-- Absolute near-field E/H near wires, sources, and load junctions, plus complicated phased stacks, need independent validation.
-- Ground models, conductivity, thin-wire approximations, and matching networks can introduce material numerical differences.
-- Near-field color maps and sonification are exploratory representations, **not calibrated measurement instruments**.
-- The archive includes third-party antenna data and HRTF/KEMAR assets. Review redistribution permissions and provide relevant notices before publishing the complete source bundle. A project-level open-source `LICENSE` should be chosen separately; do not assume bundled third-party files share the same terms.
+### Confirmed from source inspection
 
-## Reporting issues and credits
+- Version identifiers and Android build configuration are consistent with **1.19.267**.
+- The principal MAA engine is the project's MININEC-like solver, not automatically the legacy NEC-2 native path.
+- v1.19.266's fixed-topology sweep mechanism remains; v1.19.267 adds a guard on the incompatible multi-source real-ground fallback.
+- The modification does not by itself introduce smoothing, resonance fitting, or forced target impedances.
 
-For a reproducible bug report, provide the source `.maa` / `.ffs` / `.ffd` / `.s1p`, frequency, ground setting, wire material, screenshots, expected impedance/pattern/field results, and independent MMANA/CST or measurement evidence.
+### Not confirmed for this release
 
-**Antenna Calculator PRO · © UA1CFM, 2026.**
+- Full Android compilation and end-to-end operation on diverse phones.
+- A fresh numerical sweep of the complete 1713–2435 MAA collection using the v1.19.267 binary.
+- Quantitative MMANA comparison of every model and all exceptional source/load/ground combinations.
+- Absolute accuracy of near-field E/H components or a complete 3D cross-solver validation.
+
+Particularly sensitive antennas include DDRR and other high-Q resonators, fat/tapered elements, fractals, gamma/LC-matched systems, PEC/real-ground arrays and coherent multi-feed stacks. The special fallback guard **may terminate a sweep** rather than show results computed with inconsistent topologies. Treat that diagnostic as intentional, not as a successful electromagnetic solve.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| `gradlew` cannot start | Ensure the Gradle wrapper JAR and scripts are present and compatible |
+| Android Studio sync fails | JDK/Gradle/AGP alignment, SDK 35 and dependency repositories |
+| Unrealistic R or X | Geometry units, pulse topology, wire radii, loads, source orientation, ground |
+| Sharp Smith jumps | Are segments fixed across the sweep? Was a fallback invoked? Inspect diagnostic output |
+| Narrow DDRR resonance appears shifted | Increase local frequency resolution; compare segment locations and MMANA reference |
+| Near-wire E/H spikes or odd minima | Regularized observation distance and finite-segment model limitations |
+| LiteVNA has unreliable traces | USB link, permissions, calibration, firmware, sample averaging and cables |
+
+## Reproducible bug reports
+
+Please include: app build/version, original `.maa`/`.ffs`/`.ffd`/`.s1p` source, center/sweep frequencies, coordinate units, source and load locations, PEC/real ground and soil assumptions, expected MMANA/CST values, exact error text, output traces or CSV, and device/Android version. For numerical discrepancies, provide both `R(f)` and `X(f)`, not just a cropped Smith-chart screenshot.
+
+A separate **JVM real-solver testbench** was assembled for 1.19.267, but successful compilation and numerical execution were *not* established during its preparation. It must not be cited as an independently verified regression run.
+
+## Contributing, licensing and acknowledgments
+
+**Author:** UA1CFM · **Copyright:** © 2026 UA1CFM.
+
+The availability of source code does **not** itself confer permission to redistribute or relicense third-party code, historical antenna corpora, sample models, HRTF assets or bundled vendor-related materials. Before public release, review all dependencies and bundled assets, preserve required attribution, add an explicit project license for the original code, and document rights to each third-party component. No project-level license grant is asserted here.
+
+Contributions should preserve physical validity, keep numerical reference data separate from fitted assumptions, and report failures instead of inventing corrected impedance values.
